@@ -54,6 +54,8 @@
     }
   }
 
+  /* 이모지는 시스템 글꼴이 아니라 emoji-sprite.js 가 넣어 준 그림을 쓴다. */
+  .emo{width:1em;height:1em;display:inline-block;vertical-align:-.125em}
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
@@ -168,6 +170,7 @@
 </style>
 </head>
 <body>
+<script src="emoji-sprite.js"></script>
 <a class="skip" href="#main">본문 바로가기</a>
 
 <header>
@@ -213,17 +216,17 @@
       <h2 id="bins-h">통 여섯 개</h2>
       <p class="guide">게임에서는 각 통의 번호 키(1~6)를 누르면 됩니다. 색과 번호는 그대로예요.</p>
       <ul class="bins">
-        <li style="--bc:var(--b1)"><span class="key">1</span><span class="ico">🗑️</span>
+        <li style="--bc:var(--b1)"><span class="key">1</span><span class="ico"><svg class="emo" aria-hidden="true"><use href="#e-1f5d1_fe0f"></use></svg></span>
           <span><span class="nm">일반쓰레기</span><span class="ex">종량제 봉투에 넣는 것</span></span></li>
-        <li style="--bc:var(--b2)"><span class="key">2</span><span class="ico">📄</span>
+        <li style="--bc:var(--b2)"><span class="key">2</span><span class="ico"><svg class="emo" aria-hidden="true"><use href="#e-1f4c4"></use></svg></span>
           <span><span class="nm">종이</span><span class="ex">신문지, 상자, 책</span></span></li>
-        <li style="--bc:var(--b3)"><span class="key">3</span><span class="ico">🧴</span>
+        <li style="--bc:var(--b3)"><span class="key">3</span><span class="ico"><svg class="emo" aria-hidden="true"><use href="#e-1f9f4"></use></svg></span>
           <span><span class="nm">플라스틱</span><span class="ex">페트병, 용기, 통</span></span></li>
-        <li style="--bc:var(--b4)"><span class="key">4</span><span class="ico">🥫</span>
+        <li style="--bc:var(--b4)"><span class="key">4</span><span class="ico"><svg class="emo" aria-hidden="true"><use href="#e-1f96b"></use></svg></span>
           <span><span class="nm">캔·고철</span><span class="ex">음료 캔, 통조림, 금속</span></span></li>
-        <li style="--bc:var(--b5)"><span class="key">5</span><span class="ico">🍾</span>
+        <li style="--bc:var(--b5)"><span class="key">5</span><span class="ico"><svg class="emo" aria-hidden="true"><use href="#e-1f37e"></use></svg></span>
           <span><span class="nm">유리</span><span class="ex">병 종류</span></span></li>
-        <li style="--bc:var(--b6)"><span class="key">6</span><span class="ico">🛍️</span>
+        <li style="--bc:var(--b6)"><span class="key">6</span><span class="ico"><svg class="emo" aria-hidden="true"><use href="#e-1f6cd_fe0f"></use></svg></span>
           <span><span class="nm">비닐</span><span class="ex">봉지, 포장 비닐</span></span></li>
       </ul>
     </section>
@@ -233,19 +236,19 @@
       <p class="guide">어른도 자주 틀리는 것들이에요. 먼저 생각해 보고 눌러보세요.</p>
       <div class="quiz">
         <ul class="qlist">
-          <li><span class="e">🧾</span><span class="q">영수증</span>
+          <li><span class="e"><svg class="emo" aria-hidden="true"><use href="#e-1f9fe"></use></svg></span><span class="q">영수증</span>
             <details><summary>정답 보기</summary>
               <p class="a"><b>일반쓰레기</b> — 감열지라서 재활용이 안 돼요. 종이류에 넣으면 안 됩니다.</p>
             </details></li>
-          <li><span class="e">🍗</span><span class="q">치킨 상자</span>
+          <li><span class="e"><svg class="emo" aria-hidden="true"><use href="#e-1f357"></use></svg></span><span class="q">치킨 상자</span>
             <details><summary>정답 보기</summary>
               <p class="a"><b>일반쓰레기</b> — 기름과 양념이 밴 종이는 재활용이 안 돼요.</p>
             </details></li>
-          <li><span class="e">🧊</span><span class="q">젤 아이스팩</span>
+          <li><span class="e"><svg class="emo" aria-hidden="true"><use href="#e-1f9ca"></use></svg></span><span class="q">젤 아이스팩</span>
             <details><summary>정답 보기</summary>
               <p class="a"><b>일반쓰레기</b> — 겉 비닐만 비닐류, 젤이 든 몸통은 일반쓰레기예요.</p>
             </details></li>
-          <li><span class="e">🪞</span><span class="q">거울</span>
+          <li><span class="e"><svg class="emo" aria-hidden="true"><use href="#e-1fa9e"></use></svg></span><span class="q">거울</span>
             <details><summary>정답 보기</summary>
               <p class="a"><b>일반쓰레기</b> — 유리병과 성분이 달라 함께 녹일 수 없어요.</p>
             </details></li>

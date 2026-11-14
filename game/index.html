@@ -14,6 +14,9 @@
        구분되는 쪽이 부스에서 훨씬 중요하다. 색맹 대비로 번호·아이콘도 같이 쓴다. */
     --b1:#94a3b8; --b2:#60a5fa; --b3:#fbbf24; --b4:#f472b6; --b5:#22d3ee; --b6:#a78bfa;
   }
+  /* 이모지는 시스템 글꼴이 아니라 emoji-sprite.js 가 넣어 준 그림을 쓴다.
+     글자 자리에 그대로 들어가도록 1em 정사각형으로 맞춘다. */
+  .emo{width:1em;height:1em;display:inline-block;vertical-align:-.125em}
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
   body{
@@ -204,6 +207,7 @@
 </style>
 </head>
 <body>
+<script src="../emoji-sprite.js"></script>
 
 <a id="homelink" href="../">← 시작 페이지</a>
 
@@ -229,7 +233,7 @@
 
   <div class="stage">
     <div id="item">
-      <div id="emoji">🗑️</div>
+      <div id="emoji"></div>
       <div id="name">준비 중</div>
       <div id="qhint">어느 통에 버릴까요?</div>
       <div id="itembar"><i></i></div>
@@ -314,6 +318,17 @@
 var $ = function(s){ return document.querySelector(s); };
 var clamp = function(v,a,b){ return Math.min(b, Math.max(a,v)); };
 
+/* 이모지 글자를 스프라이트 그림으로 바꾼다.
+   심볼 id 는 코드포인트를 _ 로 이은 것이라 글자에서 바로 계산할 수 있다
+   (Array.from 을 써야 서로게이트 쌍이 두 글자로 쪼개지지 않는다). */
+function emo(ch, cls){
+  var id = Array.from(ch).map(function(c){
+    return c.codePointAt(0).toString(16);
+  }).join('_');
+  return '<svg class="emo' + (cls ? ' ' + cls : '') + '" aria-hidden="true">' +
+         '<use href="#e-' + id + '"></use></svg>';
+}
+
 /* ----------------------------------------------------------- 통 여섯 개 */
 var BINS = [
   {id:'etc',     name:'일반쓰레기', ico:'🗑️', css:'--b1'},
@@ -335,7 +350,7 @@ var ITEMS = [
   /* 종이 */
   {e:'📰', n:'신문지',      bin:'paper',   tip:'끈으로 묶어서 종이류로 배출해요.'},
   {e:'📦', n:'택배 상자',   bin:'paper',   tip:'테이프와 송장 스티커를 떼고 접어서 배출해요.'},
-  {e:'📚', n:'책',          bin:'paper',   tip:'스프링이나 비닐 코팅 표지는 떼어내고 배출해요.'},
+  {e:'📕', n:'책',          bin:'paper',   tip:'스프링이나 비닐 코팅 표지는 떼어내고 배출해요.'},
   {e:'📅', n:'달력',        bin:'paper',   tip:'스프링만 떼면 종이류예요.'},
   {e:'📒', n:'공책',        bin:'paper',   tip:'겉표지가 코팅됐다면 그 부분만 떼어내요.'},
   {e:'🧻', n:'휴지심',      bin:'paper', tricky:true, tip:'휴지 심지는 종이류예요. 쓴 휴지는 일반쓰레기고요.'},
@@ -362,7 +377,7 @@ var ITEMS = [
   {e:'🧷', n:'철제 옷걸이', bin:'can',     tip:'고철류로 배출해요. 세탁소 비닐은 따로 떼고요.'},
   {e:'🔩', n:'못·나사',     bin:'can',     tip:'작은 금속도 고철이에요. 다치지 않게 모아서 배출해요.'},
   {e:'🧯', n:'살충제 스프레이', bin:'can', tricky:true, tip:'내용물을 완전히 비우고 구멍을 뚫어 캔류로 배출해요.'},
-  {e:'🔘', n:'금속 병뚜껑',  bin:'can', tricky:true, tip:'유리병에서 떼어내 캔·고철류로 배출해요.'},
+  {e:'⚪', n:'금속 병뚜껑',  bin:'can', tricky:true, tip:'유리병에서 떼어내 캔·고철류로 배출해요.'},
 
   /* 유리 */
   {e:'🍾', n:'소주병',      bin:'glass',   tip:'빈 병 보증금을 돌려받을 수 있어요. 마트에 가져가 보세요.'},
@@ -382,7 +397,7 @@ var ITEMS = [
   {e:'🥬', n:'채소 포장 비닐', bin:'vinyl', tip:'물기와 흙을 털어내고 비닐류로 배출해요.'},
   {e:'📮', n:'택배 비닐봉투', bin:'vinyl',  tip:'송장을 떼어내고 비닐류로 배출해요.'},
   {e:'❄️', n:'아이스팩 겉비닐', bin:'vinyl', tricky:true, tip:'젤을 버린 뒤 남은 겉비닐만 비닐류예요.'},
-  {e:'📖', n:'책 표지 비닐', bin:'vinyl', tricky:true, tip:'책에서 떼어낸 비닐 코팅 표지는 비닐류로 배출해요.'},
+  {e:'📘', n:'책 표지 비닐', bin:'vinyl', tricky:true, tip:'책에서 떼어낸 비닐 코팅 표지는 비닐류로 배출해요.'},
 
   /* 일반쓰레기 — 여기가 가장 많이 틀리는 칸이다 */
   {e:'🧾', n:'영수증',      bin:'etc',  tricky:true, tip:'감열지라 재활용이 안 돼요. 종이류에 넣으면 안 됩니다.'},
@@ -390,7 +405,7 @@ var ITEMS = [
   {e:'🧊', n:'젤 아이스팩', bin:'etc',  tricky:true, tip:'겉 비닐만 비닐류, 젤이 든 몸통은 일반쓰레기예요.'},
   {e:'🪥', n:'칫솔',        bin:'etc',  tricky:true, tip:'플라스틱·고무·나일론이 붙어 있어 분리가 안 돼요.'},
   {e:'🪞', n:'거울',        bin:'etc',  tricky:true, tip:'유리병과 성분이 달라 함께 녹일 수 없어요.'},
-  {e:'🍽️', n:'깨진 도자기 그릇', bin:'etc', tricky:true, tip:'불에 타지 않는 쓰레기예요. 신문지에 싸서 버려요.'},
+  {e:'🥣', n:'깨진 도자기 그릇', bin:'etc', tricky:true, tip:'불에 타지 않는 쓰레기예요. 신문지에 싸서 버려요.'},
   {e:'💄', n:'화장품 유리병', bin:'etc', tricky:true, tip:'색유리에 펌프까지 섞여 있어 유리병으로 재활용되지 않아요.'},
   {e:'💿', n:'CD',          bin:'etc',  tricky:true, tip:'여러 겹이 붙어 있어 재활용이 안 돼요.'},
   {e:'🥢', n:'나무젓가락',  bin:'etc',  tip:'나무는 종이류가 아니에요. 일반쓰레기로 버려요.'},
@@ -403,7 +418,7 @@ var ITEMS = [
   {e:'🥛', n:'유리컵',       bin:'etc', tricky:true, tip:'내열·강화유리는 유리병과 녹는 온도가 달라 섞이면 안 돼요.'},
   {e:'💔', n:'깨진 유리병',  bin:'etc', tricky:true, tip:'깨진 유리는 신문지에 싸서 일반쓰레기로 버려요.'},
   {e:'🧴', n:'치약 튜브',    bin:'etc', tricky:true, tip:'여러 겹이 붙어 있어 분리가 안 돼요.'},
-  {e:'🧽', n:'물티슈',       bin:'etc', tricky:true, tip:'휴지처럼 보여도 플라스틱 섬유라 물에 녹지 않아요.'},
+  {e:'🤧', n:'물티슈',       bin:'etc', tricky:true, tip:'휴지처럼 보여도 플라스틱 섬유라 물에 녹지 않아요.'},
   {e:'🎒', n:'보냉백',       bin:'etc', tricky:true, tip:'천과 은박이 붙어 있어 분리가 안 돼요.'}
 ];
 
@@ -513,7 +528,7 @@ function buildBins(){
     return '<button class="bin" type="button" data-id="' + b.id + '" style="--bc:var(' + b.css + ')" ' +
            'aria-label="' + b.key + '번 ' + b.name + '">' +
            '<span class="key">' + b.key + '</span>' +
-           '<span class="ico">' + b.ico + '</span>' +
+           '<span class="ico">' + emo(b.ico) + '</span>' +
            '<span class="nm">' + b.name + '</span></button>';
   }).join('');
   Array.prototype.forEach.call(document.querySelectorAll('.bin'), function(el){
@@ -521,7 +536,7 @@ function buildBins(){
   });
   $('#attractBins').innerHTML = BINS.map(function(b){
     return '<span class="binchip" style="border-color:var(' + b.css + ')66">' +
-           '<i>' + b.ico + '</i>' + b.key + ' ' + b.name + '</span>';
+           '<i>' + emo(b.ico) + '</i>' + b.key + ' ' + b.name + '</span>';
   }).join('');
 }
 
@@ -561,7 +576,7 @@ function pickNext(){
 
 function showItem(){
   cur = pickNext();
-  $('#emoji').textContent = cur.e;
+  $('#emoji').innerHTML = emo(cur.e);
   $('#name').textContent = cur.n;
   var el = $('#item');
   el.classList.remove('out');
@@ -715,7 +730,7 @@ function showResult(save){
   if(misses.length){
     $('#missHead').textContent = '틀린 것만 다시 보기 (' + misses.length + '개)';
     $('#miss').innerHTML = misses.map(function(m){
-      return '<div class="missrow"><div class="e">' + m.e + '</div><div>' +
+      return '<div class="missrow"><div class="e">' + emo(m.e) + '</div><div>' +
              '<div class="t">' + m.n +
                '<span class="tag pick">내 답 ' + m.picked + '</span>' +
                '<span class="tag ans">정답 ' + m.right + '</span></div>' +
@@ -750,10 +765,10 @@ function renderDash(){
             .sort(function(a,b){ return b.c - a.c; }).slice(0, 6);
   $('#dTop').innerHTML = top.length
     ? top.map(function(t){
-        return '<div class="r"><div class="e">' + t.e + '</div><div>' + t.n +
+        return '<div class="r"><div class="e">' + emo(t.e) + '</div><div>' + t.n +
                '</div><div class="c">' + t.c + '회</div></div>';
       }).join('')
-    : '<div class="r"><div class="e">🙂</div><div>아직 틀린 기록이 없습니다</div><div class="c"></div></div>';
+    : '<div class="r"><div class="e">' + emo('🙂') + '</div><div>아직 틀린 기록이 없습니다</div><div class="c"></div></div>';
 }
 
 /* ------------------------------------------------------- 운영자 패널 */
