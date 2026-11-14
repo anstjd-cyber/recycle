@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>분리수거 챌린지</title>
+<style>
+  :root{
+    --bg:#0a1410; --bg2:#122820;
+    --fg:#eefbf4; --muted:#8fb3a3;
+    --accent:#34d399;
+    --ok:#34d399; --no:#f87171;
+    /* 통 색 — 실제 분리배출함 색을 그대로 따르지는 않는다. 여섯 개가 한눈에
+       구분되는 쪽이 부스에서 훨씬 중요하다. 색맹 대비로 번호·아이콘도 같이 쓴다. */
+    --b1:#94a3b8; --b2:#60a5fa; --b3:#fbbf24; --b4:#f472b6; --b5:#22d3ee; --b6:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--bg); color:var(--fg);
+    font-family:"Pretendard","Malgun Gothic","Segoe UI",system-ui,sans-serif;
+    overflow:hidden; user-select:none; -webkit-tap-highlight-color:transparent;
+  }
+  .view{position:fixed;inset:0;display:none;flex-direction:column}
+  .view.on{display:flex}
+  button{font-family:inherit}
+
+  /* ---------- 대기화면 ---------- */
+  #view-attract{align-items:center;justify-content:center;gap:clamp(30px,5vh,56px);
+    text-align:center;cursor:pointer;padding:6vh 5vw;
+    background:radial-gradient(1200px 700px at 50% 32%,#17362a 0%,var(--bg) 70%)}
+  #view-attract h1{font-size:clamp(32px,6vw,78px);margin:0 0 12px;letter-spacing:-.03em}
+  #view-attract .sub{font-size:clamp(15px,1.8vw,23px);color:#fff;margin:0 0 30px}
+  .pulse{display:inline-flex;align-items:center;gap:10px;
+    background:var(--accent);color:#062018;font-weight:800;
+    font-size:clamp(16px,1.9vw,24px);padding:15px 36px;border-radius:999px;
+    animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(52,211,153,.4)}
+    50%{transform:scale(1.03);box-shadow:0 0 0 14px rgba(52,211,153,0)}}
+  .binrow{display:flex;gap:clamp(8px,1.4vw,18px);justify-content:center;flex-wrap:wrap;
+    max-width:1100px}
+  .binchip{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;
+    background:#ffffff0f;border:1px solid #ffffff1f;font-size:clamp(13px,1.3vw,17px);font-weight:700}
+  .binchip i{font-style:normal;font-size:1.3em}
+
+  /* ---------- 게임화면 ---------- */
+  #view-play{padding:0}
+  .hud{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:clamp(14px,2vh,24px) clamp(18px,3vw,38px)}
+  .hudbox{background:#ffffff0d;border:1px solid #ffffff1a;border-radius:16px;
+    padding:10px 20px;text-align:center;min-width:112px}
+  .hudbox .k{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.06em}
+  .hudbox .v{font-size:clamp(24px,3.1vw,40px);font-weight:900;line-height:1.1;
+    font-variant-numeric:tabular-nums}
+  #timebox .v{color:var(--accent)}
+  #timebox.warn .v{color:#fbbf24}
+  #timebox.danger .v{color:var(--no);animation:tick .5s steps(2) infinite}
+  @keyframes tick{50%{opacity:.45}}
+  #combobox{opacity:0;transition:opacity .2s}
+  #combobox.on{opacity:1}
+
+  .timebar{height:7px;background:#ffffff14;margin:0 clamp(18px,3vw,38px);border-radius:99px;overflow:hidden}
+  .timebar i{display:block;height:100%;width:100%;background:var(--accent);
+    transition:width .25s linear, background-color .3s}
+  .timebar.warn i{background:#fbbf24}
+  .timebar.danger i{background:var(--no)}
+
+  /* 가운데 쓰레기 카드 */
+  .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    position:relative;padding:10px 20px}
+  #item{display:flex;flex-direction:column;align-items:center;gap:clamp(6px,1.4vh,16px);
+    transition:transform .18s, opacity .18s}
+  #item.in{animation:drop .26s cubic-bezier(.2,.9,.3,1.4)}
+  @keyframes drop{from{transform:translateY(-38px) scale(.9);opacity:0}to{transform:none;opacity:1}}
+  #item.out{opacity:0;transform:scale(.82)}
+  #emoji{font-size:clamp(84px,17vh,190px);line-height:1;
+    filter:drop-shadow(0 10px 30px #0008)}
+  #name{font-size:clamp(28px,4.6vw,62px);font-weight:900;letter-spacing:-.02em;text-align:center}
+  #qhint{font-size:clamp(14px,1.6vw,20px);color:var(--muted);font-weight:700}
+  /* 문제별 남은 시간. 전체 시간 막대와 헷갈리지 않게 문제 바로 아래에 짧게 둔다. */
+  #itembar{width:min(340px,62vw);height:6px;border-radius:99px;background:#ffffff1a;
+    overflow:hidden;margin-top:4px}
+  #itembar.off{visibility:hidden}
+  #itembar i{display:block;height:100%;width:100%;background:var(--muted);
+    transition:width .1s linear, background-color .25s}
+  #itembar.warn i{background:#fbbf24}
+  #itembar.danger i{background:var(--no)}
+
+  /* 판정 표시 */
+  #verdict{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    flex-direction:column;gap:14px;background:#050d0ae8;text-align:center;padding:24px}
+  #verdict.on{display:flex}
+  #vmark{font-size:clamp(56px,11vh,120px);line-height:1;font-weight:900}
+  #vmark.ok{color:var(--ok)} #vmark.no{color:var(--no)}
+  #vtitle{font-size:clamp(22px,3.4vw,44px);font-weight:900}
+  #vans{font-size:clamp(16px,2vw,26px);font-weight:800}
+  #vtip{font-size:clamp(14px,1.7vw,21px);color:#cfe9de;max-width:760px;line-height:1.6}
+
+  /* 아래 통 여섯 개 */
+  .bins{display:grid;grid-template-columns:repeat(6,1fr);gap:clamp(6px,.9vw,14px);
+    padding:0 clamp(14px,2.4vw,30px) clamp(16px,3vh,32px)}
+  .bin{position:relative;background:#ffffff0a;border:2px solid #ffffff1c;border-radius:18px;
+    padding:clamp(10px,1.6vh,18px) 6px;display:flex;flex-direction:column;align-items:center;
+    gap:5px;cursor:pointer;color:inherit;transition:transform .12s, border-color .12s, background-color .12s}
+  .bin .key{position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+    background:var(--bc);color:#06120e;font-size:13px;font-weight:900;
+    width:26px;height:26px;border-radius:999px;display:grid;place-items:center}
+  .bin .ico{font-size:clamp(22px,3.2vh,38px);line-height:1.1}
+  .bin .nm{font-size:clamp(12px,1.25vw,17px);font-weight:800;text-align:center;line-height:1.25}
+  .bin.hit{border-color:var(--bc);background:color-mix(in srgb, var(--bc) 18%, transparent)}
+  .bin.right{border-color:var(--ok);background:#34d39930;transform:translateY(-5px)}
+  .bin.wrong{border-color:var(--no);background:#f8717130;animation:shake .3s}
+  @keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+  @media (hover:hover){ .bin:hover{border-color:var(--bc);transform:translateY(-3px)} }
+  .bin:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+
+  /* ---------- 결과화면 ---------- */
+  #view-result{overflow:auto;padding-bottom:58px}
+  .rwrap{margin:auto;width:100%;max-width:980px;padding:36px 22px 40px}
+  .rhead{text-align:center;margin-bottom:24px}
+  .rhead h2{font-size:clamp(25px,3.4vw,42px);margin:0 0 6px}
+  .rhead p{color:var(--muted);margin:0;font-size:16px}
+  .card{background:var(--bg2);border:1px solid #ffffff14;border-radius:22px;padding:26px}
+  .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  .scorebox{text-align:center}
+  .rank{display:inline-block;font-size:14px;font-weight:800;letter-spacing:.06em;
+    padding:7px 18px;border-radius:999px;margin-bottom:12px;color:#06120e}
+  .bignum{font-size:clamp(62px,12vw,128px);font-weight:900;line-height:.95;letter-spacing:-.04em;
+    font-variant-numeric:tabular-nums}
+  .bignum small{font-size:.26em;font-weight:700;color:var(--muted);letter-spacing:0;margin-left:3px}
+  .rankname{font-size:clamp(20px,2.6vw,32px);font-weight:900;margin-top:8px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}
+  .stat{background:#ffffff0a;border-radius:14px;padding:13px 8px}
+  .stat .k{font-size:12px;color:var(--muted);font-weight:700}
+  .stat .v{font-size:clamp(18px,2.4vw,27px);font-weight:900;font-variant-numeric:tabular-nums}
+  .misshead{margin:0 0 12px;font-size:19px;font-weight:800}
+  .miss{display:flex;flex-direction:column;gap:9px;max-height:360px;overflow:auto}
+  .missrow{display:flex;gap:11px;align-items:flex-start;background:#ffffff08;
+    border-radius:13px;padding:11px 14px}
+  .missrow .e{font-size:26px;line-height:1.1;flex:none}
+  .missrow .t{font-size:15px;font-weight:800;display:flex;align-items:center;
+    gap:7px;flex-wrap:wrap}
+  /* '무엇을 눌렀고 정답이 뭔지' 를 글자로 붙여 준다. 취소선만으로는 둘 중
+     어느 쪽이 정답인지 한눈에 들어오지 않는다. */
+  .missrow .tag{font-size:12px;font-weight:800;padding:2px 8px;border-radius:999px}
+  .missrow .pick{background:#f8717126;color:#ffc2c2}
+  .missrow .ans{background:#34d39926;color:#9df0d0}
+  .missrow .d{font-size:13.5px;color:var(--muted);margin-top:3px;line-height:1.55}
+  .allright{color:var(--muted);font-size:15px;line-height:1.7}
+  .rbtns{display:flex;gap:13px;justify-content:center;margin-top:26px;flex-wrap:wrap}
+  .btn{border:0;border-radius:999px;padding:16px 40px;font-size:18px;font-weight:800;cursor:pointer}
+  .btn.p{background:var(--accent);color:#06120e}
+  .btn.s{background:#ffffff12;color:var(--fg);border:1px solid #ffffff24}
+
+  /* ---------- 집계화면 ---------- */
+  #view-dash{overflow:auto}
+  .dwrap{margin:auto;width:100%;max-width:1180px;padding:42px 26px}
+  .dwrap h2{font-size:clamp(26px,3.4vw,44px);margin:0 0 4px}
+  .dwrap .dsub{color:var(--muted);margin:0 0 30px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:16px;margin-bottom:20px}
+  .kpi{background:var(--bg2);border:1px solid #ffffff14;border-radius:20px;padding:24px}
+  .kpi .k{color:var(--muted);font-size:14px;margin-bottom:7px}
+  .kpi .v{font-size:clamp(32px,4.2vw,52px);font-weight:900;letter-spacing:-.03em;
+    font-variant-numeric:tabular-nums}
+  .kpi .v small{font-size:.38em;color:var(--muted);font-weight:700;margin-left:4px}
+  .toprow{display:flex;flex-direction:column;gap:9px}
+  .toprow .r{display:grid;grid-template-columns:38px 1fr 76px;gap:13px;align-items:center;
+    background:#ffffff08;border-radius:12px;padding:11px 16px;font-size:15px}
+  .toprow .r .e{font-size:24px;text-align:center}
+  .toprow .r .c{text-align:right;font-weight:800;color:#fca5a5;font-variant-numeric:tabular-nums}
+
+  /* ---------- 공통 ---------- */
+  #homelink{position:fixed;z-index:6;top:16px;right:18px;display:none;
+    padding:10px 22px;border-radius:999px;border:1px solid #ffffff26;
+    background:#000000a6;color:var(--muted);text-decoration:none;font-size:17px;font-weight:700}
+  #homelink.on{display:block}
+  @media (hover:hover){ #homelink:hover{color:var(--fg);border-color:var(--accent)} }
+  #panel-op{position:fixed;z-index:60;right:16px;bottom:16px;width:356px;max-height:86vh;overflow:auto;
+    background:#0c1a15f2;border:1px solid #ffffff26;border-radius:18px;padding:19px;
+    backdrop-filter:blur(10px);font-size:14px}
+  #panel-op h3{margin:0 0 4px;font-size:17px}
+  #panel-op .ophint{color:var(--muted);font-size:12px;margin:0 0 15px;line-height:1.55}
+  #panel-op fieldset{border:1px solid #ffffff1f;border-radius:12px;padding:10px 14px 14px;margin:0 0 13px}
+  #panel-op legend{color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.08em;padding:0 6px}
+  .f{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 0}
+  .f label{color:#c6e3d7}
+  .f input{background:#071310;border:1px solid #ffffff2b;color:var(--fg);border-radius:9px;
+    padding:8px 10px;font-size:14px;font-family:inherit;width:112px}
+  .opbtns{display:flex;gap:8px;flex-wrap:wrap}
+  .opbtns button{flex:1;min-width:100px;border:0;border-radius:10px;padding:11px;font-weight:800;
+    cursor:pointer;font-size:13px;background:#ffffff17;color:var(--fg)}
+  .opbtns button.p{background:var(--accent);color:#06120e}
+  .opbtns button.d{background:#f8717126;color:#ffc4c4}
+  #toast{position:fixed;z-index:70;left:50%;bottom:62px;transform:translateX(-50%) translateY(24px);
+    background:#eefbf4;color:#0a1410;padding:13px 26px;border-radius:999px;font-weight:800;
+    opacity:0;transition:.25s;pointer-events:none;max-width:84vw;text-align:center}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (prefers-reduced-motion:reduce){ *{animation:none !important;transition:none !important} }
+  /* 통이 여섯 개라 좁은 화면에서는 두 줄로 내린다. 한 줄을 고집하면 글자가 뭉개진다. */
+  @media (max-width:720px){
+    .bins{grid-template-columns:repeat(3,1fr);gap:9px}
+    .rgrid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<a id="homelink" href="../">← 시작 페이지</a>
+
+<!-- ============ 대기화면 ============ -->
+<section id="view-attract" class="view">
+  <div>
+    <h1>분리수거 챌린지</h1>
+    <div class="sub">쓰레기가 나오면 알맞은 통의 번호를 누르세요.<br>
+      한 문제에 주어지는 시간은 6초! 60초 동안 몇 개나 맞힐 수 있을까요?</div>
+    <div class="pulse" id="startHint">아무 키나 눌러 시작</div>
+  </div>
+  <div class="binrow" id="attractBins"></div>
+</section>
+
+<!-- ============ 게임화면 ============ -->
+<section id="view-play" class="view">
+  <div class="hud">
+    <div class="hudbox" id="timebox"><div class="k">남은 시간</div><div class="v"><span id="time">60</span>초</div></div>
+    <div class="hudbox" id="combobox"><div class="k">연속 정답</div><div class="v"><span id="combo">0</span>개</div></div>
+    <div class="hudbox"><div class="k">점수</div><div class="v" id="score">0</div></div>
+  </div>
+  <div class="timebar" id="timebar"><i></i></div>
+
+  <div class="stage">
+    <div id="item">
+      <div id="emoji">🗑️</div>
+      <div id="name">준비 중</div>
+      <div id="qhint">어느 통에 버릴까요?</div>
+      <div id="itembar"><i></i></div>
+    </div>
+    <div id="verdict">
+      <div id="vmark">✓</div>
+      <div id="vtitle">정답!</div>
+      <div id="vans"></div>
+      <div id="vtip"></div>
+    </div>
+  </div>
+
+  <div class="bins" id="bins"></div>
+</section>
+
+<!-- ============ 결과화면 ============ -->
+<section id="view-result" class="view">
+  <div class="rwrap">
+    <div class="rhead">
+      <h2>분리수거 결과</h2>
+      <p id="rankline"></p>
+    </div>
+    <div class="rgrid">
+      <div class="card scorebox">
+        <div class="rank" id="rankTag">등급</div>
+        <div class="bignum"><span id="rScore">0</span><small>점</small></div>
+        <div class="rankname" id="rankName"></div>
+        <div class="stats">
+          <div class="stat"><div class="k">맞힌 개수</div><div class="v" id="rRight">0</div></div>
+          <div class="stat"><div class="k">정확도</div><div class="v" id="rAcc">0%</div></div>
+          <div class="stat"><div class="k">최고 연속</div><div class="v" id="rCombo">0</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="misshead" id="missHead">틀린 것만 다시 보기</h3>
+        <div class="miss" id="miss"></div>
+      </div>
+    </div>
+    <div class="rbtns">
+      <button class="btn p" id="btnAgain">다시 하기</button>
+      <button class="btn s" id="btnHome">처음으로</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 집계화면 ============ -->
+<section id="view-dash" class="view">
+  <div class="dwrap">
+    <h2>오늘의 분리수거 현황</h2>
+    <p class="dsub">우리 부스에서 플레이한 결과입니다 · 개인정보는 수집하지 않습니다</p>
+    <div class="kpis">
+      <div class="kpi"><div class="k">오늘 플레이</div><div class="v"><span id="dN">0</span><small>회</small></div></div>
+      <div class="kpi"><div class="k">평균 점수</div><div class="v"><span id="dAvg">0</span><small>점</small></div></div>
+      <div class="kpi"><div class="k">최고 점수</div><div class="v"><span id="dBest">0</span><small>점</small></div></div>
+      <div class="kpi"><div class="k">평균 정확도</div><div class="v"><span id="dAcc">0</span><small>%</small></div></div>
+    </div>
+    <div class="kpi">
+      <div class="k" style="margin-bottom:16px">가장 많이 틀린 쓰레기</div>
+      <div class="toprow" id="dTop"></div>
+    </div>
+  </div>
+</section>
+
+<div id="panel-op" hidden></div>
+<div id="toast"></div>
+
+<script>
+/* =======================================================================
+   분리수거 챌린지 — 부스 게임
+   - 60초 동안 쓰레기를 보고 알맞은 통의 번호(1~6)를 누른다
+   - 틀리면 정답과 이유를 보여준다. 배우는 게 목적이라 감점은 하지 않는다
+   - 운영자 패널: O 키 / 집계화면: D 키 / 처음으로: Esc
+
+   ■ 왜 감점을 하지 않나
+     부스에서 점수를 깎으면 체험자가 모르는 것을 '찍지 않고 넘기려' 한다.
+     틀린 순간이 바로 배우는 순간이므로, 오답은 점수를 0 으로 두고 대신
+     정답과 이유를 1.6초 보여준다. 맞히면 0.4초만 보여주고 바로 넘어간다.
+   ======================================================================= */
+(function(){
+'use strict';
+
+var $ = function(s){ return document.querySelector(s); };
+var clamp = function(v,a,b){ return Math.min(b, Math.max(a,v)); };
+
+/* ----------------------------------------------------------- 통 여섯 개 */
+var BINS = [
+  {id:'etc',     name:'일반쓰레기', ico:'🗑️', css:'--b1'},
+  {id:'paper',   name:'종이',       ico:'📄', css:'--b2'},
+  {id:'plastic', name:'플라스틱',   ico:'🧴', css:'--b3'},
+  {id:'can',     name:'캔·고철',    ico:'🥫', css:'--b4'},
+  {id:'glass',   name:'유리',       ico:'🍾', css:'--b5'},
+  {id:'vinyl',   name:'비닐',       ico:'🛍️', css:'--b6'}
+];
+var BIN_BY_ID = {};
+BINS.forEach(function(b,i){ b.key = String(i+1); BIN_BY_ID[b.id] = b; });
+
+/* ------------------------------------------------------------- 문제 목록
+   tip 은 틀렸을 때 보여주는 한 줄 설명이다. '왜 그런지'까지 적어야 다음에
+   기억에 남는다 — 정답만 알려주면 그 자리에서 잊는다.
+   tricky:true 는 어른도 자주 틀리는 것. 너무 많이 나오면 게임이 괴로워지므로
+   아래 pickNext 에서 비율을 조절한다. */
+var ITEMS = [
+  /* 종이 */
+  {e:'📰', n:'신문지',      bin:'paper',   tip:'끈으로 묶어서 종이류로 배출해요.'},
+  {e:'📦', n:'택배 상자',   bin:'paper',   tip:'테이프와 송장 스티커를 떼고 접어서 배출해요.'},
+  {e:'📚', n:'책',          bin:'paper',   tip:'스프링이나 비닐 코팅 표지는 떼어내고 배출해요.'},
+  {e:'📅', n:'달력',        bin:'paper',   tip:'스프링만 떼면 종이류예요.'},
+  {e:'📒', n:'공책',        bin:'paper',   tip:'겉표지가 코팅됐다면 그 부분만 떼어내요.'},
+  {e:'🧻', n:'휴지심',      bin:'paper', tricky:true, tip:'휴지 심지는 종이류예요. 쓴 휴지는 일반쓰레기고요.'},
+  {e:'🥛', n:'우유팩',      bin:'paper', tricky:true, tip:'헹궈 펼쳐서 배출해요. 일반 종이와 따로 모으면 화장지로 다시 태어나요.'},
+  {e:'☕', n:'종이컵',      bin:'paper', tricky:true, tip:'헹궈서 종이류로 배출해요. 안쪽 코팅 때문에 따로 모으면 더 좋아요.'},
+  {e:'👟', n:'신발 상자',   bin:'paper',   tip:'겉면 코팅이 없으면 종이류예요.'},
+
+  /* 플라스틱 */
+  {e:'🧴', n:'샴푸 통',     bin:'plastic', tip:'펌프는 재질이 달라 따로 빼고, 통은 헹궈서 배출해요.'},
+  {e:'🥤', n:'플라스틱 컵', bin:'plastic', tip:'내용물을 비우고 헹궈서 배출해요.'},
+  {e:'🍱', n:'배달 용기',   bin:'plastic', tip:'기름기를 헹궈내야 재활용돼요. 안 지워지면 일반쓰레기예요.'},
+  {e:'🧃', n:'페트병',      bin:'plastic', tip:'라벨을 떼고 찌그러뜨린 뒤 뚜껑을 닫아 배출해요.'},
+  {e:'🪣', n:'플라스틱 바구니', bin:'plastic', tip:'다른 재질이 섞이지 않았다면 플라스틱이에요.'},
+  {e:'💊', n:'약통',        bin:'plastic', tricky:true, tip:'남은 약은 약국에 반납하고 통만 배출해요.'},
+  {e:'🍚', n:'즉석밥 용기',  bin:'plastic', tricky:true, tip:'일반쓰레기로 아는 사람이 많아요. 헹구면 플라스틱으로 배출돼요.'},
+  {e:'🥚', n:'투명 계란판',  bin:'plastic', tricky:true, tip:'투명한 건 플라스틱, 회색 종이 계란판은 종이류예요.'},
+  {e:'🔵', n:'페트병 뚜껑',  bin:'plastic', tricky:true, tip:'재질이 달라도 선별장에서 걸러져요. 플라스틱으로 같이 배출해요.'},
+
+  /* 캔·고철 */
+  {e:'🥫', n:'통조림 캔',   bin:'can',     tip:'내용물을 비우고 헹궈서 배출해요.'},
+  {e:'🥤', n:'음료수 캔',   bin:'can',     tip:'찌그러뜨려 부피를 줄이면 좋아요.'},
+  {e:'🔥', n:'부탄가스',    bin:'can', tricky:true, tip:'가스를 완전히 빼고 구멍을 뚫어서 배출해요.'},
+  {e:'🍳', n:'낡은 프라이팬', bin:'can', tricky:true, tip:'고철이에요. 코팅이 벗겨졌어도 금속류로 배출해요.'},
+  {e:'🧷', n:'철제 옷걸이', bin:'can',     tip:'고철류로 배출해요. 세탁소 비닐은 따로 떼고요.'},
+  {e:'🔩', n:'못·나사',     bin:'can',     tip:'작은 금속도 고철이에요. 다치지 않게 모아서 배출해요.'},
+  {e:'🧯', n:'살충제 스프레이', bin:'can', tricky:true, tip:'내용물을 완전히 비우고 구멍을 뚫어 캔류로 배출해요.'},
+  {e:'🔘', n:'금속 병뚜껑',  bin:'can', tricky:true, tip:'유리병에서 떼어내 캔·고철류로 배출해요.'},
+
+  /* 유리 */
+  {e:'🍾', n:'소주병',      bin:'glass',   tip:'빈 병 보증금을 돌려받을 수 있어요. 마트에 가져가 보세요.'},
+  {e:'🍺', n:'맥주병',      bin:'glass',   tip:'소주병과 함께 보증금 환불 대상이에요.'},
+  {e:'🍯', n:'잼 유리병',   bin:'glass',   tip:'내용물을 비우고 헹군 뒤, 뚜껑은 따로 분리해요.'},
+  {e:'🫙', n:'유리 반찬통', bin:'glass', tricky:true, tip:'뚜껑이 플라스틱이면 따로 떼어내 각각 배출해요.'},
+  {e:'🍷', n:'와인병',      bin:'glass',   tip:'코르크는 빼고 유리류로 배출해요.'},
+  {e:'🫗', n:'참기름병',    bin:'glass', tricky:true, tip:'기름기가 남으면 재활용이 안 돼요. 꼭 헹궈서 배출해요.'},
+  {e:'🧃', n:'유리 음료병',  bin:'glass',   tip:'뚜껑을 떼고 헹궈서 유리류로 배출해요.'},
+  {e:'🍶', n:'양념 유리병',  bin:'glass',   tip:'라벨은 그대로 둬도 괜찮아요. 내용물만 비우면 돼요.'},
+
+  /* 비닐 */
+  {e:'🍜', n:'라면 봉지',   bin:'vinyl',   tip:'이물질을 털어내고 비닐류로 배출해요.'},
+  {e:'🍪', n:'과자 봉지',   bin:'vinyl',   tip:'은박처럼 보여도 비닐류예요.'},
+  {e:'🛍️', n:'비닐봉지',    bin:'vinyl',   tip:'깨끗한 비닐은 모아서 비닐류로 배출해요.'},
+  {e:'🧊', n:'뽁뽁이',      bin:'vinyl', tricky:true, tip:'에어캡도 비닐류예요. 테이프는 떼고 배출해요.'},
+  {e:'🥬', n:'채소 포장 비닐', bin:'vinyl', tip:'물기와 흙을 털어내고 비닐류로 배출해요.'},
+  {e:'📮', n:'택배 비닐봉투', bin:'vinyl',  tip:'송장을 떼어내고 비닐류로 배출해요.'},
+  {e:'❄️', n:'아이스팩 겉비닐', bin:'vinyl', tricky:true, tip:'젤을 버린 뒤 남은 겉비닐만 비닐류예요.'},
+  {e:'📖', n:'책 표지 비닐', bin:'vinyl', tricky:true, tip:'책에서 떼어낸 비닐 코팅 표지는 비닐류로 배출해요.'},
+
+  /* 일반쓰레기 — 여기가 가장 많이 틀리는 칸이다 */
+  {e:'🧾', n:'영수증',      bin:'etc',  tricky:true, tip:'감열지라 재활용이 안 돼요. 종이류에 넣으면 안 됩니다.'},
+  {e:'🍗', n:'치킨 상자',   bin:'etc',  tricky:true, tip:'기름과 양념이 밴 종이는 재활용이 안 돼요.'},
+  {e:'🧊', n:'젤 아이스팩', bin:'etc',  tricky:true, tip:'겉 비닐만 비닐류, 젤이 든 몸통은 일반쓰레기예요.'},
+  {e:'🪥', n:'칫솔',        bin:'etc',  tricky:true, tip:'플라스틱·고무·나일론이 붙어 있어 분리가 안 돼요.'},
+  {e:'🪞', n:'거울',        bin:'etc',  tricky:true, tip:'유리병과 성분이 달라 함께 녹일 수 없어요.'},
+  {e:'🍽️', n:'깨진 도자기 그릇', bin:'etc', tricky:true, tip:'불에 타지 않는 쓰레기예요. 신문지에 싸서 버려요.'},
+  {e:'💄', n:'화장품 유리병', bin:'etc', tricky:true, tip:'색유리에 펌프까지 섞여 있어 유리병으로 재활용되지 않아요.'},
+  {e:'💿', n:'CD',          bin:'etc',  tricky:true, tip:'여러 겹이 붙어 있어 재활용이 안 돼요.'},
+  {e:'🥢', n:'나무젓가락',  bin:'etc',  tip:'나무는 종이류가 아니에요. 일반쓰레기로 버려요.'},
+  {e:'🧤', n:'고무장갑',    bin:'etc',  tip:'고무는 재활용 대상이 아니에요.'},
+  {e:'🖊️', n:'볼펜',        bin:'etc',  tip:'플라스틱처럼 보여도 금속 심이 들어 있어 분리가 안 돼요.'},
+  {e:'😷', n:'마스크',      bin:'etc',  tip:'위생상 일반쓰레기로 버려요.'},
+  {e:'🏷️', n:'테이프·스티커', bin:'etc', tip:'접착제가 붙어 있어 재활용이 안 돼요. 상자에서 떼어내 버려요.'},
+  {e:'🥤', n:'플라스틱 빨대', bin:'etc', tricky:true, tip:'너무 작고 가벼워 선별기에서 걸러지지 않아요.'},
+  {e:'🍫', n:'알루미늄 호일', bin:'etc', tricky:true, tip:'음식물이 묻은 호일은 재활용이 안 돼요.'},
+  {e:'🥛', n:'유리컵',       bin:'etc', tricky:true, tip:'내열·강화유리는 유리병과 녹는 온도가 달라 섞이면 안 돼요.'},
+  {e:'💔', n:'깨진 유리병',  bin:'etc', tricky:true, tip:'깨진 유리는 신문지에 싸서 일반쓰레기로 버려요.'},
+  {e:'🧴', n:'치약 튜브',    bin:'etc', tricky:true, tip:'여러 겹이 붙어 있어 분리가 안 돼요.'},
+  {e:'🧽', n:'물티슈',       bin:'etc', tricky:true, tip:'휴지처럼 보여도 플라스틱 섬유라 물에 녹지 않아요.'},
+  {e:'🎒', n:'보냉백',       bin:'etc', tricky:true, tip:'천과 은박이 붙어 있어 분리가 안 돼요.'}
+];
+
+/* ------------------------------------------------------------------ 설정 */
+var CFG_KEY = 'rcb.cfg', REC_KEY = 'rcb.records';
+var CFG_DEFAULT = {
+  gameMs: 60000,        // 한 판 길이
+  /* 문제 하나당 제한시간. 전체 60초만 두면 한 문제를 오래 붙들고 고민할 수 있어
+     쉬워진다. 문제마다 시계를 걸면 '아는 것' 과 '생각해 보면 알 것' 이 갈린다.
+     0 으로 두면 이 제한이 꺼지고 예전처럼 전체 시간만 남는다. */
+  itemMs: 6000,
+  okMs: 400,            // 정답일 때 보여주는 시간
+  noMs: 1600,           // 오답일 때 — 이유를 읽을 시간이 필요하다
+  trickyRate: 0.55,     // 어른도 틀리는 문제의 비율
+  base: 100,            // 정답 기본 점수
+  comboStep: 20,        // 연속 정답 1개당 추가 점수
+  comboMax: 5,          // 추가 점수 상한 (단계)
+  sound: true,
+  soundVol: 0.5
+};
+function safeParse(s, d){ try { return JSON.parse(s === null ? '' : s) || d; } catch(e){ return d; } }
+var CFG = Object.assign({}, CFG_DEFAULT, safeParse(localStorage.getItem(CFG_KEY), {}));
+function saveCfg(){ localStorage.setItem(CFG_KEY, JSON.stringify(CFG)); }
+
+/* --------------------------------------------------------------- 기록 */
+function loadRecs(){ return safeParse(localStorage.getItem(REC_KEY), []); }
+function saveRecs(r){ localStorage.setItem(REC_KEY, JSON.stringify(r.slice(-5000))); }
+function dayKey(d){
+  var t = new Date(d);
+  return t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+}
+function todayRecs(){
+  var k = dayKey(Date.now());
+  return loadRecs().filter(function(r){ return dayKey(r.ts) === k; });
+}
+
+/* --------------------------------------------------------------- 등급
+   거북목에서 배운 것: 점수와 등급을 따로 계산하면 서로 어긋나 보인다.
+   등급은 반드시 점수 하나에서만 끌어낸다. */
+var RANKS = [
+  {min:2000, name:'분리배출 마스터', color:'var(--b5)'},
+  {min:1400, name:'재활용 베테랑',   color:'var(--accent)'},
+  {min:800,  name:'분리배출 중급',   color:'var(--b3)'},
+  {min:300,  name:'분리배출 입문',   color:'var(--b6)'},
+  {min:0,    name:'연습이 필요해요', color:'var(--b1)'}
+];
+function rankOf(score){
+  for(var i=0;i<RANKS.length;i++){ if(score >= RANKS[i].min) return RANKS[i]; }
+  return RANKS[RANKS.length-1];
+}
+
+/* ------------------------------------------------------------ 소리 안내 */
+var actx = null;
+function unlockAudio(){
+  try{
+    if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if(actx.state === 'suspended') actx.resume();
+  }catch(e){}
+}
+window.addEventListener('pointerdown', unlockAudio, {passive:true});
+window.addEventListener('keydown', unlockAudio);
+/* 순수 사인파는 음량을 올려도 웅웅거리기만 한다. 배음을 살짝 얹으면
+   같은 음량에서도 행사장 소음 너머로 또렷하게 들린다(거북목에서 쓴 방식). */
+function beep(freq, ms, vol){
+  if(!CFG.sound || !actx || actx.state !== 'running') return;
+  var peak = clamp((vol === undefined ? 1 : vol) * (CFG.soundVol || 0.5), 0, 1);
+  if(peak <= 0) return;
+  var t = actx.currentTime, dur = ms/1000;
+  var g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  g.connect(actx.destination);
+  [[1,0.75],[2,0.25]].forEach(function(p){
+    var o = actx.createOscillator(), og = actx.createGain();
+    o.type = 'sine'; o.frequency.value = freq * p[0]; og.gain.value = p[1];
+    o.connect(og); og.connect(g);
+    o.start(t); o.stop(t + dur + 0.03);
+  });
+}
+function sfxRight(combo){
+  /* 연속으로 맞히면 음이 조금씩 올라간다 — 잘하고 있다는 걸 소리로 알려준다 */
+  beep(680 + Math.min(combo, 8) * 45, 110, 0.9);
+}
+function sfxWrong(){ beep(200, 240, 0.85); }
+function sfxEnd(){ beep(620,130,0.9); setTimeout(function(){ beep(880,260,1); }, 150); }
+
+/* --------------------------------------------------------------- 화면 */
+var HAS_PARENT = /^https?:$/.test(location.protocol) &&
+                 location.pathname.replace(/[^/]*$/, '') !== '/';
+function setView(id){
+  var vs = document.querySelectorAll('.view');
+  for(var i=0;i<vs.length;i++) vs[i].classList.toggle('on', vs[i].id === id);
+  $('#homelink').classList.toggle('on', HAS_PARENT && id !== 'view-dash' && id !== 'view-play');
+}
+var toastTimer;
+function toast(msg, ms){
+  var t = $('#toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('on'); }, ms || 2200);
+}
+
+/* ------------------------------------------------------------ 통 그리기 */
+function buildBins(){
+  $('#bins').innerHTML = BINS.map(function(b){
+    return '<button class="bin" type="button" data-id="' + b.id + '" style="--bc:var(' + b.css + ')" ' +
+           'aria-label="' + b.key + '번 ' + b.name + '">' +
+           '<span class="key">' + b.key + '</span>' +
+           '<span class="ico">' + b.ico + '</span>' +
+           '<span class="nm">' + b.name + '</span></button>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('.bin'), function(el){
+    el.addEventListener('click', function(){ answer(el.dataset.id); });
+  });
+  $('#attractBins').innerHTML = BINS.map(function(b){
+    return '<span class="binchip" style="border-color:var(' + b.css + ')66">' +
+           '<i>' + b.ico + '</i>' + b.key + ' ' + b.name + '</span>';
+  }).join('');
+}
+
+/* ------------------------------------------------------------ 게임 상태 */
+var ST = {IDLE:'IDLE', PLAY:'PLAY', FEEDBACK:'FEEDBACK', OVER:'OVER'};
+var st = ST.IDLE;
+var cur = null, score = 0, combo = 0, bestCombo = 0, right = 0, asked = 0;
+var misses = [], recent = [], endAt = 0, itemEndAt = 0, tickTimer = null, nextTimer = null;
+
+/* 문제는 '통을 먼저 고르고 그 통 안에서' 뽑는다.
+   전체에서 그냥 뽑으면 문제가 가장 많은 통(일반쓰레기)이 45% 가까이 나와,
+   체험자가 내용을 배우는 대신 '모르면 1번' 을 학습해 버린다.
+   통을 먼저 고르면 여섯 통이 고르게 나오고, 정답 분포를 눈치채도 소용이 없다.
+   어려운 문제 비율은 통 안에서 따로 조절하므로 난이도는 그대로 유지된다.
+   recent 로 최근에 나온 문제를 피하되, 가장 작은 통(6개)보다 짧게 잡아야
+   그 통이 통째로 비는 일이 없다. */
+function pickNext(){
+  var ids = BINS.map(function(b){ return b.id; });
+  var pool = [];
+  for(var t = 0; t < 12 && !pool.length; t++){
+    var binId = ids[Math.floor(Math.random() * ids.length)];
+    var inBin = ITEMS.filter(function(it){
+      return it.bin === binId && recent.indexOf(it.n) < 0;
+    });
+    if(!inBin.length) continue;
+    var wantTricky = Math.random() < CFG.trickyRate;
+    var sub = inBin.filter(function(it){ return !!it.tricky === wantTricky; });
+    pool = sub.length ? sub : inBin;
+  }
+  if(!pool.length) pool = ITEMS.filter(function(it){ return recent.indexOf(it.n) < 0; });
+  if(!pool.length) pool = ITEMS;
+  var it = pool[Math.floor(Math.random() * pool.length)];
+  recent.push(it.n);
+  if(recent.length > 5) recent.shift();
+  return it;
+}
+
+function showItem(){
+  cur = pickNext();
+  $('#emoji').textContent = cur.e;
+  $('#name').textContent = cur.n;
+  var el = $('#item');
+  el.classList.remove('out');
+  el.classList.remove('in');
+  void el.offsetWidth;          /* 애니메이션을 다시 돌리려면 리플로우가 필요하다 */
+  el.classList.add('in');
+  itemEndAt = CFG.itemMs > 0 ? performance.now() + CFG.itemMs : 0;
+  $('#itembar').classList.toggle('off', !itemEndAt);
+  st = ST.PLAY;
+}
+
+/* 제한시간을 넘기면 오답과 똑같이 처리한다. 그냥 넘겨 버리면 모르는 문제를
+   가만히 두는 쪽이 이득이 되어, 시간을 건 의미가 사라진다. */
+function timeUp(){
+  if(st !== ST.PLAY || !cur) return;
+  judge(null);
+}
+
+function startGame(){
+  score = 0; combo = 0; bestCombo = 0; right = 0; asked = 0;
+  misses = []; recent = [];
+  $('#score').textContent = '0';
+  $('#combo').textContent = '0';
+  $('#combobox').classList.remove('on');
+  $('#verdict').classList.remove('on');
+  setView('view-play');
+  endAt = performance.now() + CFG.gameMs;
+  updateClock();
+  clearInterval(tickTimer);
+  tickTimer = setInterval(updateClock, 100);
+  showItem();
+}
+
+function updateClock(){
+  var left = Math.max(0, endAt - performance.now());
+  var sec = Math.ceil(left / 1000);
+  $('#time').textContent = sec;
+  var p = clamp(left / CFG.gameMs, 0, 1);
+  $('#timebar').firstElementChild.style.width = (p * 100) + '%';
+  var level = sec <= 5 ? 'danger' : sec <= 15 ? 'warn' : '';
+  $('#timebox').className = 'hudbox ' + level;
+  $('#timebar').className = 'timebar ' + level;
+
+  if(st === ST.PLAY && itemEndAt){
+    var il = Math.max(0, itemEndAt - performance.now());
+    var ip = clamp(il / CFG.itemMs, 0, 1);
+    $('#itembar').firstElementChild.style.width = (ip * 100) + '%';
+    $('#itembar').className = ip <= 0.2 ? 'danger' : ip <= 0.5 ? 'warn' : '';
+    if(il <= 0){ timeUp(); return; }
+  }
+  if(left <= 0) endGame();
+}
+
+/* binId 가 null 이면 시간 초과다. 오답과 같은 길을 지나가게 해서
+   점수·콤보·복습 목록 처리가 한 곳에만 있도록 한다. */
+function answer(binId){ judge(binId); }
+function judge(binId){
+  if(st !== ST.PLAY || !cur) return;
+  var timeout = binId === null;
+  asked++;
+  var ok = binId === cur.bin;
+  var picked = BIN_BY_ID[binId], correct = BIN_BY_ID[cur.bin];
+  st = ST.FEEDBACK;
+
+  var btns = document.querySelectorAll('.bin');
+  Array.prototype.forEach.call(btns, function(el){
+    if(el.dataset.id === cur.bin) el.classList.add('right');
+    else if(el.dataset.id === binId && !ok) el.classList.add('wrong');
+  });
+
+  if(ok){
+    right++; combo++;
+    bestCombo = Math.max(bestCombo, combo);
+    /* 콤보 보너스에 상한을 둔다. 없으면 후반에 한 문제가 수백 점이 되어
+       앞부분이 의미 없어지고, 운 좋은 한 판이 순위표를 독차지한다. */
+    var bonus = Math.min(combo - 1, CFG.comboMax) * CFG.comboStep;
+    score += CFG.base + bonus;
+    $('#score').textContent = score;
+    $('#combo').textContent = combo;
+    $('#combobox').classList.toggle('on', combo >= 2);
+    sfxRight(combo);
+  }else{
+    combo = 0;
+    $('#combo').textContent = '0';
+    $('#combobox').classList.remove('on');
+    misses.push({e:cur.e, n:cur.n, picked:picked ? picked.name : '시간 초과',
+                 right:correct.name, tip:cur.tip});
+    sfxWrong();
+  }
+
+  var v = $('#verdict');
+  $('#vmark').textContent = ok ? '✓' : '✕';
+  $('#vmark').className = ok ? 'ok' : 'no';
+  $('#vtitle').textContent = ok ? (combo >= 3 ? combo + '연속 정답!' : '정답!')
+                                : (timeout ? '시간 초과!' : '아쉬워요');
+  $('#vans').textContent = ok ? ('+' + (CFG.base + Math.min(combo - 1, CFG.comboMax) * CFG.comboStep) + '점')
+                              : (cur.n + ' → ' + correct.name);
+  $('#vans').style.color = ok ? 'var(--ok)' : 'var(--no)';
+  $('#vtip').textContent = cur.tip;
+  v.classList.add('on');
+  $('#item').classList.add('out');
+
+  clearTimeout(nextTimer);
+  nextTimer = setTimeout(function(){
+    Array.prototype.forEach.call(btns, function(el){ el.classList.remove('right','wrong'); });
+    v.classList.remove('on');
+    if(performance.now() >= endAt){ endGame(); return; }
+    showItem();
+  }, ok ? CFG.okMs : CFG.noMs);
+}
+
+function endGame(){
+  if(st === ST.OVER) return;
+  st = ST.OVER;
+  clearInterval(tickTimer);
+  clearTimeout(nextTimer);
+  $('#verdict').classList.remove('on');
+  sfxEnd();
+  showResult();
+}
+
+/* ------------------------------------------------------------ 결과화면 */
+function showResult(save){
+  if(save === undefined) save = true;
+  var acc = asked ? Math.round(right / asked * 100) : 0;
+  var rk = rankOf(score);
+
+  if(save){
+    var recs = loadRecs();
+    recs.push({ts:Date.now(), score:score, right:right, asked:asked, acc:acc,
+               combo:bestCombo, misses:misses.map(function(m){ return {e:m.e, n:m.n}; })});
+    saveRecs(recs);
+  }
+
+  $('#rankTag').textContent = rk.name;
+  $('#rankTag').style.background = rk.color;
+  $('#rScore').textContent = score;
+  $('#rankName').textContent = rk.name;
+  $('#rankName').style.color = rk.color;
+  $('#rRight').textContent = right + ' / ' + asked;
+  $('#rAcc').textContent = acc + '%';
+  $('#rCombo').textContent = bestCombo;
+
+  var today = todayRecs();
+  var hasRank = today.length >= 5;
+  var better = today.filter(function(r){ return r.score > score; }).length;
+  $('#rankline').textContent = hasRank
+    ? ('오늘 플레이한 ' + today.length + '명 중 상위 ' + Math.round((better + 1) / today.length * 100) + '%') : '';
+  $('#rankline').hidden = !hasRank;
+
+  if(misses.length){
+    $('#missHead').textContent = '틀린 것만 다시 보기 (' + misses.length + '개)';
+    $('#miss').innerHTML = misses.map(function(m){
+      return '<div class="missrow"><div class="e">' + m.e + '</div><div>' +
+             '<div class="t">' + m.n +
+               '<span class="tag pick">내 답 ' + m.picked + '</span>' +
+               '<span class="tag ans">정답 ' + m.right + '</span></div>' +
+             '<div class="d">' + m.tip + '</div></div></div>';
+    }).join('');
+  }else{
+    $('#missHead').textContent = '전부 맞혔어요!';
+    $('#miss').innerHTML = '<p class="allright">틀린 문제가 하나도 없습니다. 분리배출을 아주 잘 알고 계시네요!<br>' +
+                           '주변에도 알려주세요 — 제대로 분리하면 실제로 재활용되는 양이 늘어납니다.</p>';
+  }
+  setView('view-result');
+}
+
+/* ------------------------------------------------------------ 집계화면 */
+function renderDash(){
+  var recs = todayRecs(), n = recs.length;
+  var sum = function(f){ return recs.reduce(function(a,r){ return a + f(r); }, 0); };
+  $('#dN').textContent = n;
+  $('#dAvg').textContent = n ? Math.round(sum(function(r){ return r.score; }) / n) : 0;
+  $('#dBest').textContent = n ? Math.max.apply(null, recs.map(function(r){ return r.score; })) : 0;
+  $('#dAcc').textContent = n ? Math.round(sum(function(r){ return r.acc; }) / n) : 0;
+
+  /* 많이 틀린 품목은 운영자가 "이게 제일 헷갈리죠?" 하고 말 걸기 좋은 재료다 */
+  var count = {};
+  recs.forEach(function(r){
+    (r.misses || []).forEach(function(m){
+      if(!count[m.n]) count[m.n] = {e:m.e, n:m.n, c:0};
+      count[m.n].c++;
+    });
+  });
+  var top = Object.keys(count).map(function(k){ return count[k]; })
+            .sort(function(a,b){ return b.c - a.c; }).slice(0, 6);
+  $('#dTop').innerHTML = top.length
+    ? top.map(function(t){
+        return '<div class="r"><div class="e">' + t.e + '</div><div>' + t.n +
+               '</div><div class="c">' + t.c + '회</div></div>';
+      }).join('')
+    : '<div class="r"><div class="e">🙂</div><div>아직 틀린 기록이 없습니다</div><div class="c"></div></div>';
+}
+
+/* ------------------------------------------------------- 운영자 패널 */
+var OP_FIELDS = [
+  ['게임', [['gameMs','한 판 길이 (ms)'], ['itemMs','문제당 제한 (ms, 0=끔)'],
+            ['trickyRate','어려운 문제 비율 (0~1)']]],
+  ['보여주는 시간 (ms)', [['okMs','정답일 때'], ['noMs','오답일 때']]],
+  ['점수', [['base','정답 기본점'], ['comboStep','연속 1개당'], ['comboMax','연속 보너스 상한']]]
+];
+function buildOpPanel(){
+  var p = $('#panel-op');
+  p.innerHTML =
+    '<h3>운영자 패널</h3>' +
+    '<p class="ophint">O 닫기 · D 집계화면 · Esc 처음으로<br>값은 즉시 저장되며 다음 판부터 적용됩니다.</p>' +
+    OP_FIELDS.map(function(g){
+      return '<fieldset><legend>' + g[0] + '</legend>' +
+        g[1].map(function(f){
+          return '<div class="f"><label for="op_' + f[0] + '">' + f[1] + '</label>' +
+                 '<input id="op_' + f[0] + '" type="number" step="any" value="' + CFG[f[0]] + '"></div>';
+        }).join('') + '</fieldset>';
+    }).join('') +
+    '<fieldset><legend>소리</legend>' +
+      '<div class="f"><label for="op_sound">효과음</label>' +
+      '<input id="op_sound" type="checkbox" style="width:auto"' + (CFG.sound ? ' checked' : '') + '></div>' +
+      '<div class="f"><label for="op_vol">크기 (0~1)</label>' +
+      '<input id="op_vol" type="number" step="0.05" min="0" max="1" value="' + CFG.soundVol + '"></div>' +
+    '</fieldset>' +
+    '<fieldset><legend>데이터 (' + loadRecs().length + '판 저장됨)</legend><div class="opbtns">' +
+      '<button class="p" id="op_csv">CSV 내보내기</button>' +
+      '<button id="op_dash">집계화면</button>' +
+      '<button id="op_preview">결과화면 미리보기</button>' +
+      '<button class="d" id="op_reset">기록 전체 삭제</button>' +
+      '<button class="d" id="op_cfgreset">설정 초기화</button>' +
+    '</div></fieldset>';
+
+  OP_FIELDS.forEach(function(g){ g[1].forEach(function(f){
+    $('#op_' + f[0]).addEventListener('change', function(e){
+      var v = parseFloat(e.target.value);
+      if(isFinite(v)){ CFG[f[0]] = v; saveCfg(); toast(f[1] + ' = ' + v, 1200); }
+    });
+  }); });
+  $('#op_sound').addEventListener('change', function(e){
+    CFG.sound = e.target.checked; saveCfg();
+    if(CFG.sound){ unlockAudio(); beep(820, 120, 0.9); }
+    toast(CFG.sound ? '소리 켬' : '소리 끔', 1200);
+  });
+  $('#op_vol').addEventListener('change', function(e){
+    var v = parseFloat(e.target.value);
+    if(!isFinite(v)) return;
+    CFG.soundVol = clamp(v, 0, 1); saveCfg();
+    e.target.value = CFG.soundVol;
+    unlockAudio(); beep(820, 150, 1);
+  });
+  $('#op_csv').addEventListener('click', exportCsv);
+  $('#op_dash').addEventListener('click', function(){ renderDash(); setView('view-dash'); $('#panel-op').hidden = true; });
+  $('#op_preview').addEventListener('click', function(){
+    $('#panel-op').hidden = true;
+    window.__rcbPreview();
+    toast('미리보기입니다 — 기록에 저장되지 않습니다', 2400);
+  });
+  $('#op_reset').addEventListener('click', function(){
+    if(confirm('저장된 기록을 모두 삭제합니다. 계속할까요?\n(리허설 데이터 정리용 — 되돌릴 수 없습니다)')){
+      localStorage.removeItem(REC_KEY); buildOpPanel(); renderDash(); toast('기록을 삭제했습니다');
+    }
+  });
+  $('#op_cfgreset').addEventListener('click', function(){
+    if(confirm('모든 설정을 기본값으로 되돌립니다. 계속할까요?')){
+      CFG = Object.assign({}, CFG_DEFAULT); saveCfg(); buildOpPanel(); toast('설정을 초기화했습니다');
+    }
+  });
+}
+
+function exportCsv(){
+  var recs = loadRecs();
+  if(!recs.length){ toast('내보낼 기록이 없습니다'); return; }
+  var cols = ['ts','date','time','score','right','asked','accuracy','bestCombo','missedItems'];
+  var lines = [cols.join(',')];
+  recs.forEach(function(r){
+    var t = new Date(r.ts);
+    var missed = (r.misses || []).map(function(m){ return m.n; }).join(' ');
+    lines.push([r.ts, dayKey(r.ts), t.toLocaleTimeString('ko-KR', {hour12:false}),
+                r.score, r.right, r.asked, r.acc, r.combo, '"' + missed + '"'].join(','));
+  });
+  var blob = new Blob(['﻿' + lines.join('\r\n')], {type:'text/csv;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '분리수거_' + dayKey(Date.now()) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(recs.length + '판을 내보냈습니다');
+}
+
+/* ------------------------------------------------------------- 입력 */
+document.addEventListener('keydown', function(e){
+  if(e.target.tagName === 'INPUT') return;
+  var k = e.key;
+  var lower = k.toLowerCase();
+
+  if(lower === 'o'){ var p = $('#panel-op'); p.hidden = !p.hidden; if(!p.hidden) buildOpPanel(); return; }
+  if(lower === 'd'){
+    if($('#view-dash').classList.contains('on')) goHome();
+    else { renderDash(); setView('view-dash'); }
+    return;
+  }
+  if(k === 'Escape'){ goHome(); return; }
+
+  /* 숫자 키 1~6 — 본체 숫자열과 숫자패드를 모두 받는다.
+     e.key 는 숫자패드에서도 '1' 로 오므로 그대로 쓸 수 있다. */
+  if(st === ST.PLAY && k >= '1' && k <= '6'){
+    e.preventDefault();
+    var b = BINS[parseInt(k, 10) - 1];
+    if(b){
+      var el = document.querySelector('.bin[data-id="' + b.id + '"]');
+      if(el){ el.classList.add('hit'); setTimeout(function(){ el.classList.remove('hit'); }, 120); }
+      answer(b.id);
+    }
+    return;
+  }
+
+  if($('#view-attract').classList.contains('on')){ startGame(); }
+});
+
+function goHome(){
+  clearInterval(tickTimer); clearTimeout(nextTimer);
+  st = ST.IDLE;
+  $('#verdict').classList.remove('on');
+  setView('view-attract');
+}
+
+$('#view-attract').addEventListener('click', function(){ if(st === ST.IDLE) startGame(); });
+$('#btnAgain').addEventListener('click', startGame);
+$('#btnHome').addEventListener('click', goHome);
+
+/* 레이아웃·점수 계산을 눈으로 확인할 때 쓰는 창구 (기록에 저장되지 않음) */
+window.__rcbPreview = function(sc, rt, ak){
+  score = sc === undefined ? 1480 : sc;
+  right = rt === undefined ? 14 : rt;
+  asked = ak === undefined ? 17 : ak;
+  bestCombo = 7;
+  misses = [
+    {e:'🧾', n:'영수증', picked:'종이', right:'일반쓰레기', tip:'감열지라 재활용이 안 돼요. 종이류에 넣으면 안 됩니다.'},
+    {e:'🧊', n:'젤 아이스팩', picked:'비닐', right:'일반쓰레기', tip:'겉 비닐만 비닐류, 젤이 든 몸통은 일반쓰레기예요.'},
+    {e:'💄', n:'화장품 유리병', picked:'유리', right:'일반쓰레기', tip:'색유리에 펌프까지 섞여 있어 유리병으로 재활용되지 않아요.'}
+  ];
+  showResult(false);
+  return {score:score, rank:rankOf(score).name};
+};
+window.__rcbState = function(){
+  return {st:st, score:score, combo:combo, right:right, asked:asked,
+          cur:cur ? {n:cur.n, bin:cur.bin} : null, misses:misses.length};
+};
+window.__rcbAnswer = function(binId){ answer(binId); };
+window.__rcbItems = ITEMS;
+/* 문제 분포가 한쪽으로 쏠리지 않는지 확인하는 창구 (통별 출현 횟수를 센다) */
+window.__rcbSample = function(n){
+  var saveRecent = recent.slice();
+  var out = {}, tricky = 0;
+  recent = [];
+  for(var i = 0; i < (n || 2000); i++){
+    var it = pickNext();
+    out[it.bin] = (out[it.bin] || 0) + 1;
+    if(it.tricky) tricky++;
+  }
+  recent = saveRecent;
+  return {counts: out, trickyPct: Math.round(tricky / (n || 2000) * 100)};
+};
+window.__rcbBins = BINS;
+
+/* --------------------------------------------------------------- 시작 */
+buildBins();
+if(location.hash === '#dashboard'){ renderDash(); setView('view-dash'); }
+else goHome();
+})();
+</script>
+</body>
+</html>

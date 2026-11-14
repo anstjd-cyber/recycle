@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#228738">
+<title>분리수거 챌린지</title>
+<meta name="description" content="60초 동안 쓰레기를 알맞은 통에 분리배출해 보세요. 틀린 것은 이유까지 알려드려요.">
+<link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  /* ---------------------------------------------------------------------
+     KRDS(대한민국 정부 디자인 시스템) 스타일을 따른 단일 파일 페이지.
+     색상·타이포 스케일·반경 값은 KRDS 디자인 토큰에서 가져왔다.
+       팔레트  https://www.krds.go.kr/html/site/style/style_02.html
+       타이포  https://www.krds.go.kr/html/site/style/style_03.html
+     정부 서비스가 아니므로 공식 배너·정부 상징은 쓰지 않는다.
+     같은 부스에서 쓰는 다른 체험들과 톤을 맞추되, 강조색만 초록으로 바꿨다.
+     --------------------------------------------------------------------- */
+  :root{
+    --gray-0:#ffffff;  --gray-5:#f4f5f6;  --gray-10:#e6e8ea; --gray-20:#cdd1d5;
+    --gray-30:#b1b8be; --gray-50:#6d7882; --gray-60:#58616a; --gray-70:#464c53;
+    --gray-90:#1e2124; --gray-95:#131416;
+    --green-5:#eef7f0; --green-10:#d6ecdb; --green-30:#7ec88e;
+    --green-40:#3fa654; --green-50:#228738; --green-60:#1b6c2d;
+    --primary-50:#256ef4; --primary-60:#0b50d0;
+    --point-5:#fbeff0; --point-50:#d63d4a; --point-60:#ab2b36;
+
+    /* 통 여섯 개 — 게임 화면과 같은 색을 쓴다. 시작 페이지에서 본 색 그대로
+       게임에 나와야 "아, 아까 그거" 하고 바로 연결된다. */
+    --b1:#64748b; --b2:#2563eb; --b3:#b45309; --b4:#be185d; --b5:#0e7490; --b6:#6d28d9;
+
+    --bg:var(--gray-5);        --surface:var(--gray-0);
+    --text:var(--gray-90);     --text-subtle:var(--gray-70);
+    --text-primary:var(--green-60);
+    --line:var(--gray-20);     --line-subtle:var(--gray-10);
+    --accent:var(--green-50);  --accent-strong:var(--green-60);
+    --accent-soft:var(--green-5);
+    --warn:var(--point-50); --warn-text:var(--point-60); --warn-soft:var(--point-5);
+    --r-s:4px; --r-m:6px; --r-l:10px;
+  }
+  /* KRDS 는 다크 테마를 정의하지 않는다. 회색·초록 단계만 재배치해
+     어두운 변형을 만들었다(비공식). */
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:var(--gray-95);       --surface:var(--gray-90);
+      --text:var(--gray-5);      --text-subtle:var(--gray-30);
+      --text-primary:var(--green-30);
+      --line:var(--gray-70);     --line-subtle:#2b2f34;
+      --accent:var(--green-40);  --accent-strong:var(--green-30);
+      --accent-soft:#16251a;
+      --warn:#e0858c; --warn-text:#f5d6d9; --warn-soft:#2a1719;
+      --b1:#94a3b8; --b2:#60a5fa; --b3:#fbbf24; --b4:#f472b6; --b5:#22d3ee; --b6:#a78bfa;
+    }
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:"Pretendard Variable","Pretendard","Apple SD Gothic Neo",
+      "Malgun Gothic","Segoe UI",system-ui,sans-serif;
+    font-size:17px; line-height:1.5; -webkit-text-size-adjust:100%;
+  }
+  .skip{position:absolute;left:-999px;top:0;z-index:10}
+  .skip:focus{left:8px;top:8px;background:var(--accent-strong);color:#fff;
+    padding:10px 16px;border-radius:var(--r-m);font-weight:700;font-size:15px}
+
+  .inner{max-width:680px;margin:0 auto;padding:0 20px}
+
+  header{background:var(--surface);border-bottom:1px solid var(--line)}
+  header .inner{display:flex;align-items:center;gap:10px;height:60px}
+  .mark{width:26px;height:26px;flex:none;color:var(--accent)}
+  .service{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+  .service span{color:var(--text-subtle);font-weight:400;font-size:15px;margin-left:7px}
+
+  main{padding:40px 0 56px}
+  h1{font-size:clamp(28px,6.6vw,40px);font-weight:800;line-height:1.4;
+    margin:0 0 14px;letter-spacing:-.02em}
+  /* 세 줄의 간격을 같게 하려고 줄 간격을 길이로 못 박는다.
+     1.5 같은 단위 없는 값은 비율로 상속돼서, 글자가 작은 마지막 줄만 좁아진다. */
+  .lead{font-size:19px;line-height:28px;color:var(--text);margin:0 0 16px;font-weight:500}
+  .lead .safe{color:var(--text-primary);font-weight:700}
+
+  /* 카드 — 다른 체험 페이지와 같은 규칙(높이 맞춤 + 세로 가운데) */
+  .cards{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:12px;grid-auto-rows:1fr}
+  .cards li{display:grid}
+  .card{
+    display:flex;flex-direction:column;justify-content:center;
+    text-decoration:none;color:inherit;background:var(--surface);
+    border:1px solid var(--line);border-radius:var(--r-m);padding:15px 20px;
+    transition:border-color .12s, background-color .12s;
+  }
+  .card .t{font-size:18px;font-weight:700;line-height:1.4;display:flex;align-items:center;gap:8px}
+  .card .t .go{margin-left:auto;flex:none;color:var(--accent-strong);
+    width:20px;height:20px;transition:transform .12s}
+  .card .d{font-size:15px;color:var(--text-subtle);margin-top:4px;line-height:1.5}
+  .card.lead-card{border-left:4px solid var(--accent)}
+  .badge{
+    display:inline-block;background:var(--accent-soft);color:var(--text-primary);
+    font-size:12px;font-weight:700;padding:2px 8px;border-radius:var(--r-s);
+    margin-bottom:5px;
+    align-self:flex-start;   /* 카드가 flex 라 이걸 빼면 배지가 카드 너비로 늘어난다 */
+  }
+  @media (hover:hover){
+    .card:hover{border-color:var(--accent);background:var(--accent-soft)}
+    .card:hover .t .go{transform:translateX(3px)}
+  }
+  .card:active{background:var(--green-10)}
+
+  h2{font-size:19px;font-weight:700;margin:0 0 12px}
+  .section{margin-bottom:40px}
+  .section:last-child{margin-bottom:0}
+  .guide{font-size:15px;color:var(--text-subtle);margin:-6px 0 12px}
+
+  .notice{border:1px solid var(--line);border-radius:var(--r-m);
+    background:var(--surface);padding:18px 20px;margin-bottom:12px}
+  .notice h3{margin:0 0 6px;font-size:19px;font-weight:700}
+  .notice p{margin:0;font-size:15px;color:var(--text-subtle);line-height:1.6}
+  .notice strong{color:var(--text);font-weight:700}
+  .notice + .section{margin-top:24px}
+
+  /* 통 여섯 개 미리보기 — 게임에서 쓸 번호와 색을 미리 익히게 한다 */
+  /* 196px 로 잡으면 본문 폭(640px)에 셋씩 들어가 글자가 뭉개진다. 둘씩 놓는다. */
+  .bins{list-style:none;margin:0;padding:0;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(262px,1fr));gap:10px}
+  .bins li{display:flex;align-items:center;gap:12px;background:var(--surface);
+    border:1px solid var(--line);border-left:4px solid var(--bc);
+    border-radius:var(--r-m);padding:13px 16px}
+  .bins .key{flex:none;width:26px;height:26px;border-radius:999px;background:var(--bc);
+    color:#fff;display:grid;place-items:center;font-size:13px;font-weight:800}
+  .bins .ico{font-size:21px;line-height:1;flex:none}
+  /* 이름과 예시는 각각 한 줄을 차지해야 한다. span 은 기본이 inline 이라
+     block 을 지정하지 않으면 '일반쓰레기종량제 봉투에...' 처럼 붙어 버린다. */
+  .bins .nm{display:block;font-size:16px;font-weight:700;line-height:1.35}
+  .bins .ex{display:block;font-size:14px;color:var(--text-subtle);margin-top:2px;line-height:1.4}
+
+  /* 맛보기 문제 — 정답을 눌러 보기 전에 생각할 시간을 준다 */
+  .quiz{background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r-m);padding:18px 20px}
+  .quiz p{margin:0 0 12px;font-size:15px;color:var(--text-subtle)}
+  .qlist{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+  .qlist li{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    border-top:1px solid var(--line-subtle);padding-top:9px}
+  .qlist li:first-child{border-top:0;padding-top:0}
+  .qlist .e{font-size:24px;line-height:1}
+  .qlist .q{font-size:16px;font-weight:700;min-width:7em}
+  .qlist details{flex:1;min-width:220px}
+  .qlist summary{cursor:pointer;font-size:14px;font-weight:700;
+    color:var(--text-primary);list-style:none;display:inline-block;
+    border:1px solid var(--line);border-radius:999px;padding:5px 14px}
+  .qlist summary::-webkit-details-marker{display:none}
+  @media (hover:hover){ .qlist summary:hover{border-color:var(--accent)} }
+  .qlist details[open] summary{display:none}
+  .qlist .a{font-size:14px;line-height:1.6;color:var(--text-subtle)}
+  .qlist .a b{color:var(--text-primary)}
+
+  footer{border-top:1px solid var(--line);background:var(--surface)}
+  footer .inner{padding:18px 20px;text-align:center}
+  footer p{margin:0;font-size:14px;color:var(--text-subtle);text-wrap:balance}
+
+  a:focus-visible,.card:focus-visible,summary:focus-visible{
+    outline:3px solid transparent;outline-offset:2px;
+    box-shadow:0 0 0 4px var(--accent);border-radius:var(--r-s);
+  }
+  .card:focus-visible{border-radius:var(--r-m)}
+  @media (prefers-reduced-motion:reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">본문 바로가기</a>
+
+<header>
+  <div class="inner">
+    <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M7 19V9l-3 2 4-6 4 6-3-2v10Z"/><path d="M14 5h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-7"/>
+    </svg>
+    <p class="service">분리수거 챌린지<span>바이브코딩 체험 부스</span></p>
+  </div>
+</header>
+
+<main id="main">
+  <div class="inner">
+    <h1>이건 어느 통에 버릴까?</h1>
+    <p class="lead">60초 동안 쓰레기를 알맞은 통에 분리배출해 보세요.<br>
+      틀려도 괜찮아요! 왜 그 통인지 이유까지 알려드릴게요.<br>
+      <span class="safe">설치할 것도, 입력할 것도 없어요. 바로 시작하면 됩니다.</span></p>
+
+    <ul class="cards">
+      <li>
+        <a class="card lead-card" href="game/">
+          <span class="badge">60초 게임</span>
+          <span class="t">분리수거 챌린지 시작하기
+            <svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+          </span>
+          <span class="d">쓰레기가 나오면 알맞은 통의 번호를 누르세요.<br>연속으로 맞히면 점수가 올라가요.</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="notice">
+      <h3>왜 제대로 분리해야 하나요?</h3>
+      <p>한 사람이 잘못 넣은 쓰레기 하나가 그 수거함 전체를 재활용 불가로 만들기도 해요.<br>
+        특히 <strong>기름이 묻은 종이</strong>나 <strong>내용물이 남은 용기</strong>가 그렇습니다.<br>
+        헹구고 말려서 제대로 넣는 것만으로 실제로 재활용되는 양이 늘어나요.</p>
+    </div>
+
+    <section class="section" aria-labelledby="bins-h">
+      <h2 id="bins-h">통 여섯 개</h2>
+      <p class="guide">게임에서는 각 통의 번호 키(1~6)를 누르면 됩니다. 색과 번호는 그대로예요.</p>
+      <ul class="bins">
+        <li style="--bc:var(--b1)"><span class="key">1</span><span class="ico">🗑️</span>
+          <span><span class="nm">일반쓰레기</span><span class="ex">종량제 봉투에 넣는 것</span></span></li>
+        <li style="--bc:var(--b2)"><span class="key">2</span><span class="ico">📄</span>
+          <span><span class="nm">종이</span><span class="ex">신문지, 상자, 책</span></span></li>
+        <li style="--bc:var(--b3)"><span class="key">3</span><span class="ico">🧴</span>
+          <span><span class="nm">플라스틱</span><span class="ex">페트병, 용기, 통</span></span></li>
+        <li style="--bc:var(--b4)"><span class="key">4</span><span class="ico">🥫</span>
+          <span><span class="nm">캔·고철</span><span class="ex">음료 캔, 통조림, 금속</span></span></li>
+        <li style="--bc:var(--b5)"><span class="key">5</span><span class="ico">🍾</span>
+          <span><span class="nm">유리</span><span class="ex">병 종류</span></span></li>
+        <li style="--bc:var(--b6)"><span class="key">6</span><span class="ico">🛍️</span>
+          <span><span class="nm">비닐</span><span class="ex">봉지, 포장 비닐</span></span></li>
+      </ul>
+    </section>
+
+    <section class="section" aria-labelledby="quiz-h">
+      <h2 id="quiz-h">맛보기 — 이건 어디로?</h2>
+      <p class="guide">어른도 자주 틀리는 것들이에요. 먼저 생각해 보고 눌러보세요.</p>
+      <div class="quiz">
+        <ul class="qlist">
+          <li><span class="e">🧾</span><span class="q">영수증</span>
+            <details><summary>정답 보기</summary>
+              <p class="a"><b>일반쓰레기</b> — 감열지라서 재활용이 안 돼요. 종이류에 넣으면 안 됩니다.</p>
+            </details></li>
+          <li><span class="e">🍗</span><span class="q">치킨 상자</span>
+            <details><summary>정답 보기</summary>
+              <p class="a"><b>일반쓰레기</b> — 기름과 양념이 밴 종이는 재활용이 안 돼요.</p>
+            </details></li>
+          <li><span class="e">🧊</span><span class="q">젤 아이스팩</span>
+            <details><summary>정답 보기</summary>
+              <p class="a"><b>일반쓰레기</b> — 겉 비닐만 비닐류, 젤이 든 몸통은 일반쓰레기예요.</p>
+            </details></li>
+          <li><span class="e">🪞</span><span class="q">거울</span>
+            <details><summary>정답 보기</summary>
+              <p class="a"><b>일반쓰레기</b> — 유리병과 성분이 달라 함께 녹일 수 없어요.</p>
+            </details></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="how-h">
+      <h2 id="how-h">이렇게 진행돼요</h2>
+      <p class="guide">한 사람당 1분이면 충분합니다.</p>
+      <div class="notice">
+        <p><strong>1.</strong> 아무 키나 눌러 시작해요.<br>
+          <strong>2.</strong> 화면에 쓰레기가 하나씩 나와요.<br>
+          <strong>3.</strong> 알맞은 통의 번호 키(1~6)를 누르거나 통을 눌러요.<br>
+          <strong>4.</strong> 60초가 끝나면 점수와 틀린 문제를 모아서 보여드려요.</p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="inner">
+    <p>이 웹사이트는 안동 ICT 연구회에서 생성형AI를 활용하여 제작했습니다.</p>
+  </div>
+</footer>
+</body>
+</html>
